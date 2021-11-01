@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: server
+  namespace: default
+  labels:
+    app: server
+spec:
+  containers:
+  - name: server
+    image: ghcr.io/cndoit18/demo:latest
+    ports:
+    - containerPort: 80
+    resources:
+      limits:
+        cpu: 500m
+        memory: 500Mi
+      requests:
+        cpu: 500m
+        memory: 500Mi
+    readinessProbe:
+      httpGet:
+        port: 80
+    livenessProbe:
+      httpGet:
+        port: 80
+    volumeMounts:
+    - mountPath: /data/
+      name: data
+  volumes:
+  - name: data
+    emptyDir: {}

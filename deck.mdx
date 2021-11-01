@@ -1,0 +1,882 @@
+import {
+  CodeSurfer,
+  CodeSurferColumns,
+  Step,
+} from "code-surfer";
+import { dracula, vsDark, github } from "@code-surfer/themes";
+import "prismjs/components/prism-docker";
+import "prismjs/components/prism-yaml";
+import { Head, Notes, Image } from "mdx-deck";
+
+export const theme = github;
+
+<Head>
+  <title>开发者视角的Kubernetes</title>
+</Head>
+
+# 开发者视角的Kubernetes
+
+@李屹楠
+
+---
+
+<CodeSurfer>
+
+```docker title="简单的web服务"
+FROM debian:stretch
+
+WORKDIR /
+COPY server .
+
+ENTRYPOINT ["/server"]
+```
+
+
+```docker title="多阶段构建"
+FROM golang:1.16 as builder
+
+WORKDIR /workspace
+COPY . .
+
+RUN go build -a -o server main.go
+
+FROM debian:stretch
+
+WORKDIR /
+COPY --from=builder /workspace/server .
+
+ENTRYPOINT ["/server"]
+```
+
+
+```docker title="充分利用缓存"
+FROM golang:1.16 as builder
+
+WORKDIR /workspace
+COPY go.sum go.sum
+COPY go.mod go.mod
+RUN go mod download
+
+COPY . .
+RUN go build -a -o server main.go
+
+FROM debian:stretch
+
+WORKDIR /
+COPY --from=builder /workspace/server .
+
+ENTRYPOINT ["/server"]
+```
+
+</CodeSurfer>
+
+---
+
+# Next?
+
+当我们有了一个web服务以后
+
+---
+
+![资源](https://github.com/cndoit18/kubernetes-for-developers/raw/master/images/resource.png)
+
+---
+
+<CodeSurfer>
+
+```yaml title="从一个简单的Pod开始"
+apiVersion: v1
+kind: Pod
+metadata:
+  name: server
+  namespace: default
+  labels:
+    app: server
+spec:
+  containers:
+  - name: server
+    image: ghcr.io/cndoit18/demo:latest
+    ports:
+    - containerPort: 80
+```
+
+```diff 1,2,6,7
+```
+
+```yaml title="添加配额"
+apiVersion: v1
+kind: Pod
+metadata:
+  name: server
+  namespace: default
+  labels:
+    app: server
+spec:
+  containers:
+  - name: server
+    image: ghcr.io/cndoit18/demo:latest
+    ports:
+    - containerPort: 80
+    resources:
+      limits:
+        cpu: 500m
+        memory: 500Mi
+      requests:
+        cpu: 500m
+        memory: 500Mi
+```
+
+```yaml title="添加检查"
+apiVersion: v1
+kind: Pod
+metadata:
+  name: server
+  namespace: default
+  labels:
+    app: server
+spec:
+  containers:
+  - name: server
+    image: ghcr.io/cndoit18/demo:latest
+    ports:
+    - containerPort: 80
+    resources:
+      limits:
+        cpu: 500m
+        memory: 500Mi
+      requests:
+        cpu: 500m
+        memory: 500Mi
+    readinessProbe:
+      httpGet:
+        port: 80
+    livenessProbe:
+      httpGet:
+        port: 80
+```
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: server
+  namespace: default
+  labels:
+    app: server
+spec:
+  containers:
+  - name: server
+    image: ghcr.io/cndoit18/demo:latest
+    ports:
+    - containerPort: 80
+    resources:
+      limits:
+        cpu: 500m
+        memory: 500Mi
+      requests:
+        cpu: 500m
+        memory: 500Mi
+    readinessProbe:
+      httpGet:
+        port: 80
+    livenessProbe:
+      httpGet:
+        port: 80
+```
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: server
+  namespace: default
+  labels:
+    app: server
+spec:
+  containers:
+  - name: server
+    image: ghcr.io/cndoit18/demo:latest
+    ports:
+    - containerPort: 80
+    resources:
+      limits:
+        cpu: 500m
+        memory: 500Mi
+      requests:
+        cpu: 500m
+        memory: 500Mi
+    readinessProbe:
+      httpGet:
+        port: 80
+    livenessProbe:
+      httpGet:
+        port: 80
+    volumeMounts:
+    - mountPath: /data/
+      name: data
+  volumes:
+  - name: data
+    emptyDir: {}
+```
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: server
+  namespace: default
+  labels:
+    app: server
+spec:
+  containers:
+  - name: server
+    image: ghcr.io/cndoit18/demo:latest
+    ports:
+    - containerPort: 80
+    resources:
+      limits:
+        cpu: 500m
+        memory: 500Mi
+      requests:
+        cpu: 500m
+        memory: 500Mi
+    readinessProbe:
+      httpGet:
+        port: 80
+    livenessProbe:
+      httpGet:
+        port: 80
+    volumeMounts:
+    - mountPath: /data/
+      name: data
+  volumes:
+  - name: data
+    emptyDir: {}
+```
+</CodeSurfer>
+
+---
+
+从`Pod`到`Deployment`
+
+---
+
+<CodeSurfer>
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: server
+  template:
+    metadata:
+      labels:
+        app: server
+    spec: 
+      containers:
+      - name: server
+        image: ghcr.io/cndoit18/demo:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 500m
+            memory: 500Mi
+        readinessProbe:
+          httpGet:
+            port: 80
+        livenessProbe:
+          httpGet:
+            port: 80
+        volumeMounts:
+        - mountPath: /data/
+          name: data
+      volumes:
+      - name: data
+        emptyDir: {}
+```
+
+```diff 10:38
+```
+
+```diff 7,8,9,12,13
+```
+
+```yaml title="添加副本数"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: server
+  replicas: 4
+  template:
+    metadata:
+      labels:
+        app: server
+    spec: 
+      containers:
+      - name: server
+        image: ghcr.io/cndoit18/demo:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 500m
+            memory: 500Mi
+        readinessProbe:
+          httpGet:
+            port: 80
+        livenessProbe:
+          httpGet:
+            port: 80
+        volumeMounts:
+        - mountPath: /data/
+          name: data
+      volumes:
+      - name: data
+        emptyDir: {}
+```
+
+
+```yaml title="添加滚动更新"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: server
+  replicas: 4
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: server
+    spec: 
+      containers:
+      - name: server
+        image: ghcr.io/cndoit18/demo:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 500m
+            memory: 500Mi
+        readinessProbe:
+          httpGet:
+            port: 80
+        livenessProbe:
+          httpGet:
+            port: 80
+        volumeMounts:
+        - mountPath: /data/
+          name: data
+      volumes:
+      - name: data
+        emptyDir: {}
+```
+
+```yaml title="添加回归历史上限"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: server
+  replicas: 4
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+  revisionHistoryLimit: 20
+  template:
+    metadata:
+      labels:
+        app: server
+    spec: 
+      containers:
+      - name: server
+        image: ghcr.io/cndoit18/demo:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 500m
+            memory: 500Mi
+        readinessProbe:
+          httpGet:
+            port: 80
+        livenessProbe:
+          httpGet:
+            port: 80
+        volumeMounts:
+        - mountPath: /data/
+          name: data
+      volumes:
+      - name: data
+        emptyDir: {}
+```
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: server
+  replicas: 4
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+  revisionHistoryLimit: 20
+  template:
+    metadata:
+      labels:
+        app: server
+    spec: 
+      containers:
+      - name: server
+        image: ghcr.io/cndoit18/demo:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 500m
+            memory: 500Mi
+        readinessProbe:
+          httpGet:
+            port: 80
+        livenessProbe:
+          httpGet:
+            port: 80
+        volumeMounts:
+        - mountPath: /data/
+          name: data
+      volumes:
+      - name: data
+        emptyDir: {}
+```
+
+</CodeSurfer>
+
+---
+
+# 猜想
+
+- DaemonSet
+- Job
+- CronJob
+
+[api](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/)
+
+---
+
+# 配置
+
+---
+
+<CodeSurferColumns>
+
+<Step>
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: server
+  namespace: default
+data: {}
+```
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: server
+  replicas: 4
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+  revisionHistoryLimit: 20
+  template:
+    metadata:
+      labels:
+        app: server
+    spec: 
+      containers:
+      - name: server
+        image: ghcr.io/cndoit18/demo:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 500m
+            memory: 500Mi
+        readinessProbe:
+          httpGet:
+            port: 80
+        livenessProbe:
+          httpGet:
+            port: 80
+        volumeMounts:
+        - mountPath: /data/
+          name: data
+      volumes:
+      - name: data
+        emptyDir: {}
+```
+
+</Step>
+
+<Step>
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: server
+  namespace: default
+data:
+  conf: |
+    [Server]
+    name: hello-kubernetes
+```
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: server
+  replicas: 4
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+  revisionHistoryLimit: 20
+  template:
+    metadata:
+      labels:
+        app: server
+    spec: 
+      containers:
+      - name: server
+        image: ghcr.io/cndoit18/demo:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 500m
+            memory: 500Mi
+        readinessProbe:
+          httpGet:
+            port: 80
+        livenessProbe:
+          httpGet:
+            port: 80
+        volumeMounts:
+        - mountPath: /data/
+          name: data
+        - mountPath: /conf/server.conf
+          name: server
+          subPath: conf
+      volumes:
+      - name: data
+        emptyDir: {}
+      - name: conf
+        configMap:
+          name: server
+```
+
+</Step>
+
+</CodeSurferColumns>
+
+---
+
+<CodeSurfer>
+
+```yaml title="这是一个配置"
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: server
+  namespace: default
+data:
+  conf: |
+    [Server]
+    name: hello-kubernetes
+```
+
+```yaml title="这是一个密钥"
+apiVersion: v1
+kind: Secret
+metadata:
+  name: server
+  namespace: default
+data:
+  password: cGFzc3dvcmQK
+```
+
+</CodeSurfer>
+
+---
+
+那么如何将`Secret`配置到`Deployment`中？
+
+---
+
+<CodeSurfer>
+
+```yaml title="对外服务"
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+  namespace: default
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: server
+  type: ClusterIP
+```
+
+```diff 12,13
+```
+
+</CodeSurfer>
+
+---
+
+从`Deployment`到`StatefulSet`
+
+---
+
+<CodeSurfer>
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: server
+  replicas: 4
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+  revisionHistoryLimit: 20
+  template:
+    metadata:
+      labels:
+        app: server
+    spec: 
+      containers:
+      - name: server
+        image: ghcr.io/cndoit18/demo:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 500m
+            memory: 500Mi
+        readinessProbe:
+          httpGet:
+            port: 80
+        livenessProbe:
+          httpGet:
+            port: 80
+        volumeMounts:
+        - mountPath: /data/
+          name: data
+      volumes:
+      - name: data
+        emptyDir: {}
+```
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: server
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: server
+  replicas: 4
+  serviceName: server
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+  revisionHistoryLimit: 20
+  template:
+    metadata:
+      labels:
+        app: server
+    spec: 
+      containers:
+      - name: server
+        image: ghcr.io/cndoit18/demo:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 500m
+            memory: 500Mi
+        readinessProbe:
+          httpGet:
+            port: 80
+        livenessProbe:
+          httpGet:
+            port: 80
+        volumeMounts:
+        - mountPath: /data/
+          name: data
+      volumes:
+      - name: data
+        emptyDir: {}
+```
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: server
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: server
+  replicas: 4
+  serviceName: server
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+  revisionHistoryLimit: 20
+  template:
+    metadata:
+      labels:
+        app: server
+    spec: 
+      containers:
+      - name: server
+        image: ghcr.io/cndoit18/demo:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 500m
+            memory: 500Mi
+        readinessProbe:
+          httpGet:
+            port: 80
+        livenessProbe:
+          httpGet:
+            port: 80
+        volumeMounts:
+        - mountPath: /data/
+          name: data
+        - mountPath: /workload/
+          name: pvc
+      volumes:
+      - name: data
+        emptyDir: {}
+  volumeClaimTemplates:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: pvc
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi
+      volumeMode: Filesystem
+```
+
+</CodeSurfer>
+
+---
+
+# Helm
+
+> Helm 帮助您管理 Kubernetes 应用——Helm 图表，即使是最复杂的 Kubernetes 应用程序，都可以帮助您定义，安装和升级。
+
+[chart仓库](https://github.com/helm/charts)
+
+---
+
+# 谢谢

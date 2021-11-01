@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: server
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: server
+  replicas: 4
+  serviceName: server
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+  revisionHistoryLimit: 20
+  template:
+    metadata:
+      labels:
+        app: server
+    spec: 
+      containers:
+      - name: server
+        image: ghcr.io/cndoit18/demo:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 500m
+            memory: 500Mi
+        readinessProbe:
+          httpGet:
+            port: 80
+        livenessProbe:
+          httpGet:
+            port: 80
+        volumeMounts:
+        - mountPath: /data/
+          name: data
+        - mountPath: /workload/
+          name: pvc
+      volumes:
+      - name: data
+        emptyDir: {}
+  volumeClaimTemplates:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: pvc
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi
+      volumeMode: Filesystem
